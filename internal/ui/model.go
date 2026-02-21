@@ -103,14 +103,6 @@ func NewModel(
 	ctx context.Context,
 	cancel context.CancelFunc,
 ) *Model {
-	ta := textarea.New()
-	ta.Placeholder = "Type a reply..."
-	ta.Prompt = "> "
-	ta.ShowLineNumbers = false
-	ta.MaxHeight = 5
-	ta.CharLimit = 0 // unlimited
-	ta.Focus()
-
 	m := &Model{
 		Sessions:     sessions,
 		RunID:        runID,
@@ -120,7 +112,7 @@ func NewModel(
 		Config:       cfg,
 		MockMode:     mockMode,
 		Verbose:      verbose,
-		Input:        ta,
+		Input:        NewInput(80), // default width; resized on first WindowSizeMsg
 		DefaultReply: cfg.DefaultReply,
 		ShowStrip:    true,
 	}
