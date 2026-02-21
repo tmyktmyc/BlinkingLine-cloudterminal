@@ -35,8 +35,13 @@ var (
 	WaitTimeStyle    = lipgloss.NewStyle().Foreground(Muted)
 
 	UserRoleStyle   = lipgloss.NewStyle().Foreground(UserBlue).Bold(true)
-	ClaudeRoleStyle = lipgloss.NewStyle().Foreground(Brand).Bold(true).Background(ClaudeBg)
-	UserMsgStyle    = lipgloss.NewStyle().Background(UserBg)
+	ClaudeRoleStyle = lipgloss.NewStyle().Foreground(Brand).Bold(true)
+	UserMsgStyle    = lipgloss.NewStyle().Foreground(Fg)
+	ClaudeMsgBorder = lipgloss.NewStyle().
+			BorderLeft(true).
+			BorderStyle(lipgloss.NormalBorder()).
+			BorderForeground(Brand).
+			PaddingLeft(1)
 
 	MutedStyle       = lipgloss.NewStyle().Foreground(Muted)
 	InputBorderStyle = lipgloss.NewStyle().BorderForeground(Brand)
