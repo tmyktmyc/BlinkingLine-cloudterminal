@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/lipgloss"
 
@@ -72,17 +73,26 @@ func ViewFocus(m *Model) string {
 // ---------------------------------------------------------------------------
 
 func renderFocusWaiting(m *Model) string {
-	// Count working sessions.
-	working := 0
+	title := m.Spinner.View() + " " + BrandStyle.Render("Waiting for responses")
+
+	var sessionLines []string
 	for _, s := range m.Sessions {
 		if s.State == session.Working {
-			working++
+			elapsed := formatDuration(time.Since(s.StartedAt))
+			hint := ""
+			if s.StatusHint != "" {
+				hint = " — " + s.StatusHint
+			}
+			line := "  " + MutedStyle.Render(s.Name) + "  " +
+				lipgloss.NewStyle().Foreground(Dim).Render(elapsed+hint)
+			sessionLines = append(sessionLines, line)
 		}
 	}
 
-	line1 := MutedStyle.Render(fmt.Sprintf("\u27f3 %d sessions working...", working))
-	line2 := MutedStyle.Render("waiting for responses")
-	content := line1 + "\n" + line2
+	content := title
+	if len(sessionLines) > 0 {
+		content += "\n\n" + strings.Join(sessionLines, "\n")
+	}
 
 	return lipgloss.Place(m.Width, m.Height, lipgloss.Center, lipgloss.Center, content)
 }
@@ -94,9 +104,8 @@ func renderFocusWaiting(m *Model) string {
 // renderFocusHeader renders the focus header line.
 // Left: "diamond focus" in brand style. Right: "N working" in muted style.
 func renderFocusHeader(m *Model) string {
-	left := BrandStyle.Render("\u25c6 focus")
+	left := BrandStyle.Render("◆ focus")
 
-	// Count working sessions.
 	working := 0
 	for _, s := range m.Sessions {
 		if s.State == session.Working {
@@ -104,13 +113,15 @@ func renderFocusHeader(m *Model) string {
 		}
 	}
 
-	right := MutedStyle.Render(fmt.Sprintf("%d working", working))
+	var right string
+	if working > 0 {
+		right = m.Spinner.View() + " " + MutedStyle.Render(fmt.Sprintf("%d working", working))
+	}
 
 	gap := m.Width - lipgloss.Width(left) - lipgloss.Width(right)
 	if gap < 1 {
 		gap = 1
 	}
-
 	return left + strings.Repeat(" ", gap) + right
 }
 
@@ -122,7 +133,11 @@ func renderFocusHeader(m *Model) string {
 // optional incoming count.
 func renderProgressBar(m *Model) string {
 	// Build the counter and label suffix first so we know how wide the bar can be.
-	counter := fmt.Sprintf(" %d/%d", m.FocusCleared, m.FocusTotal)
+	pct := 0
+	if m.FocusTotal > 0 {
+		pct = (m.FocusCleared * 100) / m.FocusTotal
+	}
+	counter := fmt.Sprintf(" %d/%d (%d%%)", m.FocusCleared, m.FocusTotal, pct)
 
 	var incoming string
 	if m.FocusIncoming > 0 {
@@ -260,5 +275,5 @@ func renderFocusInput(m *Model) string {
 
 // renderFocusHelp renders the help bar for focus mode.
 func renderFocusHelp() string {
-	return HelpStyle.Render("Enter send \u00b7 S skip \u00b7 Ctrl+W dismiss \u00b7 Ctrl+Enter dflt \u00b7 Esc exit")
+	return HelpStyle.Render("Enter send  S skip  Ctrl+W dismiss  Ctrl+Enter default reply  Esc exit")
 }
