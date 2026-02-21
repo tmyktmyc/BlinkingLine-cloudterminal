@@ -181,11 +181,18 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // View renders the entire UI. It delegates to ViewNormal or ViewFocus
-// depending on the current mode.
+// depending on the current mode. When the new-session overlay is active,
+// it replaces the entire view with the centered overlay dialog.
 func (m *Model) View() string {
 	if m.Width < 60 || m.Height < 16 {
 		return "Please resize terminal (min 60x16)"
 	}
+
+	// Overlay takes over the full screen when active.
+	if m.Overlay != nil {
+		return renderOverlay(m)
+	}
+
 	if len(m.Sessions) == 0 {
 		return "No active sessions. Press Ctrl+N to create a session."
 	}
