@@ -12,7 +12,7 @@ func renderOverlay(m *Model) string {
 	ov := m.Overlay
 
 	// --- Box dimensions ---
-	boxWidth := 50
+	boxWidth := 60
 	if m.Width-4 < boxWidth {
 		boxWidth = m.Width - 4
 	}
@@ -62,6 +62,7 @@ func renderOverlay(m *Model) string {
 		nameDisplay := inputStyle.Render(ov.NameInput) + cursor
 		lines = append(lines, labelStyle.Render("Name:"))
 		lines = append(lines, nameDisplay)
+		lines = append(lines, MutedStyle.Render("e.g. auth, tests, refactor-api"))
 
 	case OverlayStepPrompt:
 		// Show confirmed name (muted).
@@ -71,6 +72,7 @@ func renderOverlay(m *Model) string {
 		promptDisplay := inputStyle.Render(ov.PromptInput) + cursor
 		lines = append(lines, labelStyle.Render("Prompt:"))
 		lines = append(lines, promptDisplay)
+		lines = append(lines, MutedStyle.Render("e.g. refactor the auth module to use JWT"))
 	}
 
 	// Error line.
