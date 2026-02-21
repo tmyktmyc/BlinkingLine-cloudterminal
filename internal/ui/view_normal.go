@@ -128,16 +128,26 @@ func renderTopBar(m *Model) string {
 		CountStyle.Render(fmt.Sprintf("%d sessions", len(m.Sessions)))
 
 	var right string
+	working := 0
+	for _, s := range m.Sessions {
+		if s.State == session.Working {
+			working++
+		}
+	}
+	if working > 0 {
+		right = m.Spinner.View() + " " + MutedStyle.Render(fmt.Sprintf("%d working", working))
+	}
 	if m.Queue.Len() > 0 {
-		right = BadgeStyle.Render(fmt.Sprintf("● %d waiting", m.Queue.Len()))
+		if right != "" {
+			right += "  "
+		}
+		right += BadgeStyle.Render(fmt.Sprintf("● %d waiting", m.Queue.Len()))
 	}
 
-	// Fill the remaining space between left and right.
 	gap := m.Width - lipgloss.Width(left) - lipgloss.Width(right)
 	if gap < 1 {
 		gap = 1
 	}
-
 	return left + strings.Repeat(" ", gap) + right
 }
 
@@ -236,32 +246,10 @@ func renderQueueNav(m *Model) string {
 	if m.Queue.Len() == 0 {
 		return ""
 	}
-
-	prev := MutedStyle.Render("← prev")
-	next := MutedStyle.Render("next →")
-
-	// Dot indicators.
-	dots := make([]string, m.Queue.Len())
-	for i := range dots {
-		if i == m.QueueIndex {
-			dots[i] = ActiveDot
-		} else {
-			dots[i] = InactiveDot
-		}
-	}
-
-	// Limit dots if too many.
-	dotStr := strings.Join(dots, " ")
-	if m.Queue.Len() > 10 {
-		// Show first few and last few.
-		dotStr = fmt.Sprintf("%s ... %s", ActiveDot, MutedStyle.Render(fmt.Sprintf("[%d items]", m.Queue.Len())))
-	}
-
-	pos := MutedStyle.Render(fmt.Sprintf("%d/%d", m.QueueIndex+1, m.Queue.Len()))
-
-	content := prev + "  " + dotStr + "  " + next + "   " + pos
-
-	return lipgloss.Place(m.Width, 1, lipgloss.Center, lipgloss.Top, content)
+	nav := MutedStyle.Render("←") + "  " +
+		lipgloss.NewStyle().Foreground(Fg).Render(fmt.Sprintf("%d of %d", m.QueueIndex+1, m.Queue.Len())) +
+		"  " + MutedStyle.Render("→")
+	return lipgloss.Place(m.Width, 1, lipgloss.Center, lipgloss.Top, nav)
 }
 
 // ---------------------------------------------------------------------------
@@ -306,27 +294,19 @@ func renderSessionHeader(m *Model, s *session.Session) string {
 	var badge string
 	switch s.State {
 	case session.Working:
-		badge = WorkingBadge + " Working"
+		badge = m.Spinner.View() + " " + MutedStyle.Render("working")
 	case session.NeedsInput:
-		badge = NeedsYouBadge + " Needs you"
+		badge = NeedsYouBadge + " " + lipgloss.NewStyle().Foreground(Amber).Render("needs you")
 	}
 
 	var waitStr string
 	if s.State == session.NeedsInput && !s.EnteredQueue.IsZero() {
-		waitStr = "waiting " + formatDuration(time.Since(s.EnteredQueue))
+		waitStr = MutedStyle.Render(formatDuration(time.Since(s.EnteredQueue)))
 	}
 
-	sep := SepStyle.Render("─")
-
-	parts := sep + sep + " " + name + " " + sep + sep + sep + " " + badge
+	parts := "  " + name + "  " + badge
 	if waitStr != "" {
-		parts += " " + sep + sep + sep + " " + WaitTimeStyle.Render(waitStr)
-	}
-
-	// Fill remaining width with separator.
-	remaining := m.Width - lipgloss.Width(parts)
-	if remaining > 0 {
-		parts += " " + SepStyle.Render(strings.Repeat("─", remaining-1))
+		parts += "  " + waitStr
 	}
 
 	return parts + "\n"
@@ -341,13 +321,13 @@ func renderChatView(m *Model, s *session.Session, height int) string {
 		return ""
 	}
 
-	wrapWidth := m.Width - 6
+	wrapWidth := m.Width - 8
 	if wrapWidth < 20 {
 		wrapWidth = 20
 	}
 
 	wrapStyle := lipgloss.NewStyle().Width(wrapWidth)
-	padding := "   " // 3 chars left padding
+	padding := "   "
 
 	var lines []string
 
@@ -355,21 +335,16 @@ func renderChatView(m *Model, s *session.Session, height int) string {
 		var rendered string
 		switch msg.Role {
 		case "user":
-			role := UserRoleStyle.Render("you ›")
+			role := UserRoleStyle.Render("you")
 			text := wrapStyle.Render(msg.Text)
-			// Apply UserBg to each line of the wrapped text.
-			textLines := strings.Split(text, "\n")
-			for i, tl := range textLines {
-				textLines[i] = UserMsgStyle.Render(tl)
-			}
-			rendered = padding + role + " " + strings.Join(textLines, "\n"+padding+"      ")
+			rendered = padding + role + "  " + text
 		case "claude":
-			role := ClaudeRoleStyle.Render("claude ›")
 			text := wrapStyle.Render(msg.Text)
-			rendered = padding + role + " " + text
+			bordered := ClaudeMsgBorder.Render(text)
+			rendered = padding + bordered
 		}
 		lines = append(lines, rendered)
-		lines = append(lines, "") // blank line separator
+		lines = append(lines, "")
 	}
 
 	// Working indicator at bottom.
@@ -379,23 +354,19 @@ func renderChatView(m *Model, s *session.Session, height int) string {
 		if !s.SlotAcquired {
 			indicator = MutedStyle.Render(fmt.Sprintf("waiting for slot... (%s)", elapsed))
 		} else if s.StatusHint != "" {
-			indicator = MutedStyle.Render(fmt.Sprintf("%s... (%s)", s.StatusHint, elapsed))
+			indicator = m.Spinner.View() + " " + MutedStyle.Render(fmt.Sprintf("%s (%s)", s.StatusHint, elapsed))
 		} else {
-			indicator = MutedStyle.Render(fmt.Sprintf("thinking... (%s)", elapsed))
+			indicator = m.Spinner.View() + " " + MutedStyle.Render(fmt.Sprintf("thinking... (%s)", elapsed))
 		}
-		role := ClaudeRoleStyle.Render("claude ›")
-		lines = append(lines, padding+role+" "+indicator)
+		lines = append(lines, padding+indicator)
 	}
 
-	// Auto-scroll: render only the last `height` lines.
 	allLines := strings.Join(lines, "\n")
 	split := strings.Split(allLines, "\n")
 
 	if len(split) > height {
 		split = split[len(split)-height:]
 	}
-
-	// Pad if fewer lines than available height.
 	for len(split) < height {
 		split = append([]string{""}, split...)
 	}
@@ -435,7 +406,7 @@ func renderInputBar(m *Model, s *session.Session) string {
 // ---------------------------------------------------------------------------
 
 func renderHelpBar() string {
-	return HelpStyle.Render("←→ nav · Ctrl+U/D scroll · Enter send · F focus · V strip · Ctrl+N new")
+	return HelpStyle.Render("← → navigate  Enter send  F focus  Ctrl+N new session  Ctrl+W dismiss")
 }
 
 // ---------------------------------------------------------------------------

@@ -9,7 +9,7 @@ import (
 func NewInput(width int) textarea.Model {
 	ta := textarea.New()
 	ta.Placeholder = "Type a message..."
-	ta.Prompt = "> "
+	ta.Prompt = "▸ "
 	ta.CharLimit = 0 // unlimited
 	ta.MaxHeight = 5
 	ta.ShowLineNumbers = false
