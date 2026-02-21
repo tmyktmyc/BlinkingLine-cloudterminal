@@ -9,19 +9,27 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// mockResponses is a set of realistic Claude-style outputs used by MockSend.
-var mockResponses = []string{
-	"I've updated the `main.go` file to add the HTTP handler for `/api/health`. The endpoint returns a JSON object with `{\"status\": \"ok\"}` and a 200 status code. Would you like me to add tests for this endpoint?",
+// mockFirstResponse is an educational welcome message returned on the
+// session's very first completion. It teaches the user how CloudTerminal
+// works while they explore mock mode.
+var mockFirstResponse = "Welcome to CloudTerminal! Here's how this works:\n\n" +
+	"You just sent me a prompt, and I (Claude) worked on it in the background. " +
+	"While I was working, you could have created more sessions with Ctrl+N — they all run in parallel.\n\n" +
+	"Now I need your input. You can:\n" +
+	"- Type a reply below and press Enter\n" +
+	"- Press ← → to switch between sessions that need you\n" +
+	"- Press F to enter focus mode (rapid queue clearing)\n\n" +
+	"This is mock mode — responses are simulated. " +
+	"To use real Claude, run without --mock and make sure `claude` CLI is in your PATH."
 
-	"Here's what I found:\n\n1. The `Config` struct is missing the `Timeout` field\n2. The `LoadConfig()` function doesn't validate the YAML schema\n3. There's a race condition in `startWorker()` — two goroutines write to `shared.count` without a mutex\n\nShould I fix all three issues, or would you like to prioritise one?",
-
-	"Done. I've created the following files:\n\n- `internal/auth/jwt.go` — token generation and validation\n- `internal/auth/middleware.go` — HTTP middleware that checks the Authorization header\n- `internal/auth/auth_test.go` — unit tests (all passing)\n\nRun `go test ./internal/auth/` to verify.",
-
-	"The test failure is caused by a nil pointer dereference in `processItem()` at line 47 of `worker.go`. The `item.Metadata` field is nil when the database returns a row with a NULL metadata column. I've added a nil check and a fallback default. All 23 tests pass now.",
-
-	"I've refactored the database layer:\n\n```go\ntype Repository interface {\n    FindByID(ctx context.Context, id string) (*Entity, error)\n    Save(ctx context.Context, e *Entity) error\n    Delete(ctx context.Context, id string) error\n}\n```\n\nThe concrete `PostgresRepository` implements this interface. I also updated all callers in `service.go` to use the interface instead of the concrete type.",
-
-	"Looking at the error logs, the issue is that the TLS certificate expired on 2025-12-01. The application falls back to plaintext HTTP when the handshake fails, which triggers the `ERR_INSECURE_RESPONSE` in the browser.\n\nTo fix this:\n1. Renew the certificate with `certbot renew`\n2. Restart the reverse proxy: `systemctl restart nginx`\n\nWould you like me to write a cron job to auto-renew the certificate?",
+// mockFollowUpResponses are short, clearly labeled mock responses used
+// after the first educational message.
+var mockFollowUpResponses = []string{
+	"[mock] Got it, I've made those changes. The tests are passing. Anything else you'd like me to adjust?",
+	"[mock] Done. I updated the files and ran the test suite — all green. Want me to move on to the next part?",
+	"[mock] I found a couple of issues and fixed them. Here's a summary of what changed. Let me know if you want to dig deeper.",
+	"[mock] Finished the refactor. The code is cleaner now and the benchmarks look good. What's next?",
+	"[mock] I've analyzed the problem and here's my recommendation. Should I go ahead and implement it?",
 }
 
 // mockHints is a set of realistic tool/status hints for MockSend.
@@ -96,8 +104,14 @@ func (s *Session) MockSend(ctx context.Context, prompt string, sem chan struct{}
 		}
 	}
 
-	// 3. Return a random mock response.
-	resp := mockResponses[rand.Intn(len(mockResponses))]
+	// 3. Return an educational first response or a random follow-up.
+	var resp string
+	if len(s.History) <= 1 {
+		// First response for this session — educational
+		resp = mockFirstResponse
+	} else {
+		resp = mockFollowUpResponses[rand.Intn(len(mockFollowUpResponses))]
+	}
 	return SendResult{
 		SessionID:   s.ID,
 		Output:      resp,
