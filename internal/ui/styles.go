@@ -19,8 +19,6 @@ var (
 	Green   = lipgloss.Color("#22c55e")
 
 	UserBlue = lipgloss.Color("#60a5fa")
-	UserBg   = lipgloss.Color("#1e3a5f")
-	ClaudeBg = lipgloss.Color("#2d1f0e")
 )
 
 // ---------------------------------------------------------------------------
@@ -35,8 +33,6 @@ var (
 	WaitTimeStyle    = lipgloss.NewStyle().Foreground(Muted)
 
 	UserRoleStyle   = lipgloss.NewStyle().Foreground(UserBlue).Bold(true)
-	ClaudeRoleStyle = lipgloss.NewStyle().Foreground(Brand).Bold(true)
-	UserMsgStyle    = lipgloss.NewStyle().Foreground(Fg)
 	ClaudeMsgBorder = lipgloss.NewStyle().
 			BorderLeft(true).
 			BorderStyle(lipgloss.NormalBorder()).
@@ -82,13 +78,9 @@ var (
 // ---------------------------------------------------------------------------
 
 var (
-	ActiveDot   = lipgloss.NewStyle().Foreground(Amber).Render("━━")
-	InactiveDot = lipgloss.NewStyle().Foreground(Dim).Render("──")
-
 	ProgressFilled = lipgloss.NewStyle().Foreground(Amber).Render("━")
 	ProgressEmpty  = lipgloss.NewStyle().Foreground(Dim).Render("░")
 
-	WorkingBadge = lipgloss.NewStyle().Foreground(Blue).Render("⟳")
-	QueuedBadge  = lipgloss.NewStyle().Foreground(Muted).Render("⟳")
+	WorkingBadge  = lipgloss.NewStyle().Foreground(Blue).Render("⟳")
 	NeedsYouBadge = lipgloss.NewStyle().Foreground(Amber).Render("●")
 )
