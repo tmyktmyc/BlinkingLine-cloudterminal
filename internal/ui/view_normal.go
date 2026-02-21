@@ -20,8 +20,7 @@ func ViewNormal(m *Model) string {
 	// Resolve the active session (may be a queue item or last-active fallback).
 	s := m.activeSession()
 	if s == nil {
-		return lipgloss.Place(m.Width, m.Height, lipgloss.Center, lipgloss.Center,
-			MutedStyle.Render("No active session. Press Ctrl+N to create one."))
+		return renderWelcome(m)
 	}
 
 	// Update input placeholder based on session state.
@@ -87,6 +86,37 @@ func ViewNormal(m *Model) string {
 	parts = append(parts, helpBar)
 
 	return lipgloss.JoinVertical(lipgloss.Left, parts...)
+}
+
+// ---------------------------------------------------------------------------
+// renderWelcome — branded welcome screen shown when no sessions exist
+// ---------------------------------------------------------------------------
+
+func renderWelcome(m *Model) string {
+	title := BrandStyle.Render("CloudTerminal")
+	subtitle := MutedStyle.Render("Run multiple Claude Code sessions in parallel")
+
+	steps := []string{
+		lipgloss.NewStyle().Foreground(Amber).Render("1.") + " " + lipgloss.NewStyle().Foreground(Fg).Render("Press") + " " + lipgloss.NewStyle().Foreground(Brand).Bold(true).Render("Ctrl+N") + " " + lipgloss.NewStyle().Foreground(Fg).Render("to create a session"),
+		lipgloss.NewStyle().Foreground(Amber).Render("2.") + " " + lipgloss.NewStyle().Foreground(Fg).Render("Give it a name and a prompt for Claude"),
+		lipgloss.NewStyle().Foreground(Amber).Render("3.") + " " + lipgloss.NewStyle().Foreground(Fg).Render("Create more sessions — they run simultaneously"),
+		lipgloss.NewStyle().Foreground(Amber).Render("4.") + " " + lipgloss.NewStyle().Foreground(Fg).Render("Reply when Claude needs you, skip between with") + " " + lipgloss.NewStyle().Foreground(Brand).Bold(true).Render("← →"),
+	}
+
+	stepsBlock := strings.Join(steps, "\n")
+
+	hint := MutedStyle.Render("or start from the command line:")
+	example := lipgloss.NewStyle().Foreground(Dim).Render("  cloudterminal \"auth:refactor auth\" \"tests:write tests\"")
+
+	if m.MockMode {
+		mockNote := lipgloss.NewStyle().Foreground(Amber).Render("mock mode") +
+			MutedStyle.Render(" — responses are simulated (no claude CLI needed)")
+		content := title + "\n" + subtitle + "\n\n" + stepsBlock + "\n\n" + hint + "\n" + example + "\n\n" + mockNote
+		return lipgloss.Place(m.Width, m.Height, lipgloss.Center, lipgloss.Center, content)
+	}
+
+	content := title + "\n" + subtitle + "\n\n" + stepsBlock + "\n\n" + hint + "\n" + example
+	return lipgloss.Place(m.Width, m.Height, lipgloss.Center, lipgloss.Center, content)
 }
 
 // ---------------------------------------------------------------------------

@@ -204,7 +204,7 @@ func (m *Model) View() string {
 	}
 
 	if len(m.Sessions) == 0 {
-		return "No active sessions. Press Ctrl+N to create a session."
+		return renderWelcome(m)
 	}
 	if m.Mode == FocusMode {
 		return ViewFocus(m)
