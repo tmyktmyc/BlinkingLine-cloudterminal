@@ -1,6 +1,10 @@
 package ui
 
-import "time"
+import (
+	"time"
+
+	"github.com/charmbracelet/bubbles/spinner"
+)
 
 // Mode represents the current UI mode.
 type Mode int
@@ -15,6 +19,10 @@ const (
 // TickMsg is sent every second to drive time-based UI updates
 // (notification expiry, dismiss confirmation expiry, focus auto-suggest).
 type TickMsg time.Time
+
+// SpinnerTickMsg wraps the bubbles spinner tick so the main Update loop can
+// forward it to the spinner model.
+type SpinnerTickMsg spinner.TickMsg
 
 // Notification is a short-lived message shown at the top of the UI.
 type Notification struct {

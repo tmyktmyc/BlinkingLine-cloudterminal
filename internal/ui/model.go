@@ -7,8 +7,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 
 	"github.com/BlinkingLine/cloudterminal/internal/config"
 	"github.com/BlinkingLine/cloudterminal/internal/queue"
@@ -52,6 +54,7 @@ type Model struct {
 	ShowStrip bool
 
 	Input        textarea.Model
+	Spinner      spinner.Model
 	DefaultReply string
 
 	FocusCleared  int
@@ -113,6 +116,7 @@ func NewModel(
 		MockMode:     mockMode,
 		Verbose:      verbose,
 		Input:        NewInput(80), // default width; resized on first WindowSizeMsg
+		Spinner:      newSpinner(),
 		DefaultReply: cfg.DefaultReply,
 		ShowStrip:    true,
 	}
@@ -142,6 +146,7 @@ func (m *Model) WaitForShutdown() {
 func (m *Model) Init() tea.Cmd {
 	cmds := []tea.Cmd{
 		tea.Tick(time.Second, func(t time.Time) tea.Msg { return TickMsg(t) }),
+		m.Spinner.Tick,
 	}
 	// Dispatch sessions that start in Working state (from CLI args).
 	for _, s := range m.Sessions {
@@ -175,6 +180,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case TickMsg:
 		return m.handleTick()
+
+	case spinner.TickMsg:
+		var cmd tea.Cmd
+		m.Spinner, cmd = m.Spinner.Update(msg)
+		return m, cmd
 	}
 
 	return m, nil
@@ -200,6 +210,14 @@ func (m *Model) View() string {
 		return ViewFocus(m)
 	}
 	return ViewNormal(m)
+}
+
+// newSpinner creates a MiniDot spinner styled with the Amber color.
+func newSpinner() spinner.Model {
+	s := spinner.New()
+	s.Spinner = spinner.MiniDot
+	s.Style = lipgloss.NewStyle().Foreground(Amber)
+	return s
 }
 
 // ---------------------------------------------------------------------------
