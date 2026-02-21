@@ -118,7 +118,7 @@ func NewModel(
 		Input:        NewInput(80), // default width; resized on first WindowSizeMsg
 		Spinner:      newSpinner(),
 		DefaultReply: cfg.DefaultReply,
-		ShowStrip:    true,
+		ShowStrip:    false,
 	}
 
 	return m
