@@ -25,6 +25,23 @@ archives:
       - goos: windows
         format: zip
 
+brews:
+  - name: cloudterminal
+    repository:
+      owner: tmyktmyc
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    commit_author:
+      name: goreleaser
+      email: goreleaser@blinkingline.dev
+    directory: Formula
+    homepage: "https://github.com/tmyktmyc/BlinkingLine-cloudterminal"
+    description: "Terminal multiplexer for Claude Code sessions"
+    install: |
+      bin.install "cloudterminal"
+    test: |
+      assert_match version.to_s, shell_output("#{bin}/cloudterminal --version")
+
 checksum:
   name_template: "checksums.txt"
 
