@@ -26,7 +26,7 @@ func (m noopModel) View() string                           { return "" }
 // ---------------------------------------------------------------------------
 
 func TestMockSendReturnsNonEmpty(t *testing.T) {
-	s := New("mocktest", "hello", "run01")
+	s := New("mocktest", "hello", "", "run01")
 	sem := make(chan struct{}, 1)
 	p := collectProgram()
 	go p.Run()
@@ -56,7 +56,7 @@ func TestMockSendReturnsNonEmpty(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestMockSendRespectsCancel(t *testing.T) {
-	s := New("mockcancel", "hello", "run01")
+	s := New("mockcancel", "hello", "", "run01")
 	sem := make(chan struct{}, 1)
 	p := collectProgram()
 	go p.Run()

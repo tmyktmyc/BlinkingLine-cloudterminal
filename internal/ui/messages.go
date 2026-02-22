@@ -2,21 +2,24 @@ package ui
 
 import "time"
 
-// Mode represents the current UI mode.
-type Mode int
+// DeckState represents what the single-pane deck is currently showing.
+type DeckState int
 
 const (
-	// NormalMode is the default mode showing the session strip and chat pane.
-	NormalMode Mode = iota
-	// FocusMode is the queue-clearing mode showing one card at a time.
-	FocusMode
+	// DeckCard shows a single session (needing input or manually browsed to).
+	DeckCard DeckState = iota
+	// DeckFeed shows the live status feed of all working sessions.
+	DeckFeed
+	// DeckHelp shows the command reference (triggered by ?).
+	DeckHelp
+	// DeckNewFlow shows the inline step-by-step session creation.
+	DeckNewFlow
 )
 
-// TickMsg is sent every second to drive time-based UI updates
-// (notification expiry, dismiss confirmation expiry, focus auto-suggest).
+// TickMsg fires every second for UI updates.
 type TickMsg time.Time
 
-// Notification is a short-lived message shown at the top of the UI.
+// Notification is a transient message that auto-expires.
 type Notification struct {
 	Text      string
 	CreatedAt time.Time

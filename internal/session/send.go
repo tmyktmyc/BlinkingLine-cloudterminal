@@ -69,6 +69,9 @@ func (s *Session) Send(ctx context.Context, prompt string, sem chan struct{}, p 
 
 	// 3. Create command.
 	cmd := exec.CommandContext(ctx, "claude", args...)
+	if s.Dir != "" {
+		cmd.Dir = s.Dir
+	}
 
 	// 4. Platform-specific process attributes and pipes.
 	configureProcAttr(cmd)

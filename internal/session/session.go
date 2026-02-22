@@ -42,6 +42,7 @@ type Message struct {
 type Session struct {
 	ID            string
 	Name          string
+	Dir           string // Working directory for this session's Claude subprocess.
 	State         SessionState
 	SlotAcquired  bool
 	CompletedOnce bool
@@ -78,13 +79,14 @@ func ValidateName(input string) (string, error) {
 // New creates a new Session in the Working state with the given name and
 // initial prompt. The session ID is formatted as ct-{runID}-{name}-{shortID}
 // where shortID is the first 8 characters of a UUIDv4.
-func New(name, prompt, runID string) *Session {
+func New(name, prompt, dir, runID string) *Session {
 	shortID := uuid.New().String()[:8]
 	return &Session{
-		ID:       fmt.Sprintf("ct-%s-%s-%s", runID, name, shortID),
-		Name:     name,
-		State:    Working,
-		History:  []Message{{Role: "user", Text: prompt}},
+		ID:        fmt.Sprintf("ct-%s-%s-%s", runID, name, shortID),
+		Name:      name,
+		Dir:       dir,
+		State:     Working,
+		History:   []Message{{Role: "user", Text: prompt}},
 		StartedAt: time.Now(),
 	}
 }

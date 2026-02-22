@@ -28,21 +28,21 @@ func TestSessionStateStringNeedsInput(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestNewCreatesSessionWithCorrectName(t *testing.T) {
-	s := New("myproject", "do something", "run01")
+	s := New("myproject", "do something", "", "run01")
 	if s.Name != "myproject" {
 		t.Errorf("Name = %q, want %q", s.Name, "myproject")
 	}
 }
 
 func TestNewCreatesSessionInWorkingState(t *testing.T) {
-	s := New("myproject", "do something", "run01")
+	s := New("myproject", "do something", "", "run01")
 	if s.State != Working {
 		t.Errorf("State = %v, want Working", s.State)
 	}
 }
 
 func TestNewCreatesSessionWithInitialHistory(t *testing.T) {
-	s := New("myproject", "do something", "run01")
+	s := New("myproject", "do something", "", "run01")
 	if len(s.History) != 1 {
 		t.Fatalf("History length = %d, want 1", len(s.History))
 	}
@@ -56,7 +56,7 @@ func TestNewCreatesSessionWithInitialHistory(t *testing.T) {
 
 func TestNewSetsStartedAt(t *testing.T) {
 	before := time.Now()
-	s := New("myproject", "do something", "run01")
+	s := New("myproject", "do something", "", "run01")
 	after := time.Now()
 
 	if s.StartedAt.Before(before) || s.StartedAt.After(after) {
@@ -65,7 +65,7 @@ func TestNewSetsStartedAt(t *testing.T) {
 }
 
 func TestNewIDFormat(t *testing.T) {
-	s := New("myproject", "do something", "run01")
+	s := New("myproject", "do something", "", "run01")
 
 	// ID must start with ct-{runID}-{name}-
 	prefix := "ct-run01-myproject-"
@@ -81,15 +81,15 @@ func TestNewIDFormat(t *testing.T) {
 }
 
 func TestNewIDsAreUnique(t *testing.T) {
-	s1 := New("proj", "prompt", "run01")
-	s2 := New("proj", "prompt", "run01")
+	s1 := New("proj", "prompt", "", "run01")
+	s2 := New("proj", "prompt", "", "run01")
 	if s1.ID == s2.ID {
 		t.Errorf("two calls to New() produced the same ID: %q", s1.ID)
 	}
 }
 
 func TestNewDefaultFieldValues(t *testing.T) {
-	s := New("proj", "prompt", "run01")
+	s := New("proj", "prompt", "", "run01")
 
 	if s.SlotAcquired {
 		t.Error("SlotAcquired should be false by default")

@@ -7,16 +7,13 @@ import "github.com/charmbracelet/lipgloss"
 // ---------------------------------------------------------------------------
 
 var (
-	Amber   = lipgloss.Color("#f59e0b")
-	Blue    = lipgloss.Color("#3b82f6")
-	Brand   = lipgloss.Color("#d4a574")
-	Fg      = lipgloss.Color("#e5e5e5")
-	Muted   = lipgloss.Color("#737373")
-	Dim     = lipgloss.Color("#404040")
-	Bg      = lipgloss.Color("#0a0a0a")
-	Surface = lipgloss.Color("#151515")
-	Red     = lipgloss.Color("#ef4444")
-	Green   = lipgloss.Color("#22c55e")
+	Amber = lipgloss.Color("#f59e0b")
+	Blue  = lipgloss.Color("#3b82f6")
+	Brand = lipgloss.Color("#d4a574")
+	Fg    = lipgloss.Color("#e5e5e5")
+	Muted = lipgloss.Color("#737373")
+	Dim   = lipgloss.Color("#404040")
+	Red   = lipgloss.Color("#ef4444")
 
 	UserBlue = lipgloss.Color("#60a5fa")
 )
@@ -27,10 +24,7 @@ var (
 
 var (
 	BrandStyle       = lipgloss.NewStyle().Foreground(Brand).Bold(true)
-	CountStyle       = lipgloss.NewStyle().Foreground(Muted)
-	BadgeStyle       = lipgloss.NewStyle().Foreground(Amber).Bold(true)
 	SessionNameStyle = lipgloss.NewStyle().Foreground(Fg).Bold(true)
-	WaitTimeStyle    = lipgloss.NewStyle().Foreground(Muted)
 
 	UserRoleStyle   = lipgloss.NewStyle().Foreground(UserBlue).Bold(true)
 	ClaudeMsgBorder = lipgloss.NewStyle().
@@ -39,38 +33,12 @@ var (
 			BorderForeground(Brand).
 			PaddingLeft(1)
 
-	MutedStyle       = lipgloss.NewStyle().Foreground(Muted)
-	InputBorderStyle = lipgloss.NewStyle().BorderForeground(Brand)
-	PlaceholderStyle = lipgloss.NewStyle().Foreground(Muted).Italic(true)
+	MutedStyle = lipgloss.NewStyle().Foreground(Muted)
 
 	NotifStyle      = lipgloss.NewStyle().Foreground(Amber)
 	ErrorNotifStyle = lipgloss.NewStyle().Foreground(Red)
 
-	CardStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(Dim).
-			Width(24).
-			Padding(0, 1).
-			Background(Surface)
-
-	ActiveCardStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(Amber).
-			Width(24).
-			Padding(0, 1).
-			Background(Surface)
-
-	WorkingCardStyle = lipgloss.NewStyle().
-				Border(lipgloss.RoundedBorder()).
-				BorderForeground(Blue).
-				Width(24).
-				Padding(0, 1).
-				Background(Surface)
-
-	HelpStyle = lipgloss.NewStyle().Foreground(Muted)
-	SepStyle  = lipgloss.NewStyle().Foreground(Dim)
-
-	FocusSeparator = lipgloss.NewStyle().Foreground(Amber)
+	SepStyle = lipgloss.NewStyle().Foreground(Dim)
 )
 
 // ---------------------------------------------------------------------------
@@ -78,9 +46,6 @@ var (
 // ---------------------------------------------------------------------------
 
 var (
-	ProgressFilled = lipgloss.NewStyle().Foreground(Amber).Render("━")
-	ProgressEmpty  = lipgloss.NewStyle().Foreground(Dim).Render("░")
-
 	WorkingBadge  = lipgloss.NewStyle().Foreground(Blue).Render("⟳")
 	NeedsYouBadge = lipgloss.NewStyle().Foreground(Amber).Render("●")
 )
