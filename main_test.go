@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"testing"
 )
 
@@ -8,7 +9,7 @@ func TestParseSessionArgs(t *testing.T) {
 	// Test basic "name:prompt" parsing
 	sessions := parseSessionArgs([]string{
 		"auth:refactor the auth",
-		"db:normalize: the table",
+		"tests:write tests",
 	}, "test1234")
 
 	if len(sessions) != 2 {
@@ -17,8 +18,8 @@ func TestParseSessionArgs(t *testing.T) {
 	if sessions[0].Name != "auth" {
 		t.Errorf("session 0 name = %q, want 'auth'", sessions[0].Name)
 	}
-	if sessions[1].Name != "db" {
-		t.Errorf("session 1 name = %q, want 'db'", sessions[1].Name)
+	if sessions[1].Name != "tests" {
+		t.Errorf("session 1 name = %q, want 'tests'", sessions[1].Name)
 	}
 }
 
@@ -34,12 +35,11 @@ func TestParseSessionArgsAutoName(t *testing.T) {
 }
 
 func TestParseSessionArgsEmptyName(t *testing.T) {
-	// Test ":prompt" → auto name
+	// Test ":prompt" → auto name (1 colon, empty name)
 	sessions := parseSessionArgs([]string{":do something"}, "test1234")
 	if len(sessions) != 1 {
 		t.Fatalf("got %d sessions, want 1", len(sessions))
 	}
-	// Should get auto name since name portion is empty
 	if sessions[0].Name != "s1" {
 		t.Errorf("auto name = %q, want 's1'", sessions[0].Name)
 	}
@@ -74,26 +74,52 @@ func TestParseSessionArgsInvalidName(t *testing.T) {
 	if len(sessions) != 1 {
 		t.Fatalf("got %d sessions, want 1", len(sessions))
 	}
-	// Should get auto name since "bad name!" is invalid
 	if sessions[0].Name == "bad name!" {
 		t.Error("invalid name should not be used directly")
 	}
 }
 
-func TestParseSessionArgsColonInPrompt(t *testing.T) {
-	// Test "db:normalize: the table" → name="db", prompt="normalize: the table"
-	sessions := parseSessionArgs([]string{"db:normalize: the table"}, "test1234")
+func TestParseSessionArgsNameDirPrompt(t *testing.T) {
+	// Test "name:dir:prompt" format with a real directory
+	home, _ := os.UserHomeDir()
+	sessions := parseSessionArgs([]string{"auth:~/:refactor auth"}, "test1234")
 	if len(sessions) != 1 {
 		t.Fatalf("got %d sessions, want 1", len(sessions))
 	}
-	if sessions[0].Name != "db" {
-		t.Errorf("name = %q, want 'db'", sessions[0].Name)
+	if sessions[0].Name != "auth" {
+		t.Errorf("name = %q, want 'auth'", sessions[0].Name)
 	}
-	// First message should contain the full prompt after first colon
-	if len(sessions[0].History) < 1 {
-		t.Fatal("expected at least 1 history message")
+	if sessions[0].Dir != home {
+		t.Errorf("dir = %q, want %q", sessions[0].Dir, home)
 	}
-	if sessions[0].History[0].Text != "normalize: the table" {
-		t.Errorf("prompt = %q, want 'normalize: the table'", sessions[0].History[0].Text)
+	if sessions[0].History[0].Text != "refactor auth" {
+		t.Errorf("prompt = %q, want 'refactor auth'", sessions[0].History[0].Text)
+	}
+}
+
+func TestParseSessionArgsDirDefaultsToCwd(t *testing.T) {
+	// Test "name:prompt" → dir defaults to cwd
+	cwd, _ := os.Getwd()
+	sessions := parseSessionArgs([]string{"auth:refactor auth"}, "test1234")
+	if len(sessions) != 1 {
+		t.Fatalf("got %d sessions, want 1", len(sessions))
+	}
+	if sessions[0].Dir != cwd {
+		t.Errorf("dir = %q, want cwd %q", sessions[0].Dir, cwd)
+	}
+}
+
+func TestParseSessionArgsJustPromptDirDefaultsToCwd(t *testing.T) {
+	// Test "just a prompt" → dir defaults to cwd
+	cwd, _ := os.Getwd()
+	sessions := parseSessionArgs([]string{"just a prompt"}, "test1234")
+	if len(sessions) != 1 {
+		t.Fatalf("got %d sessions, want 1", len(sessions))
+	}
+	if sessions[0].Name != "s1" {
+		t.Errorf("name = %q, want 's1'", sessions[0].Name)
+	}
+	if sessions[0].Dir != cwd {
+		t.Errorf("dir = %q, want cwd %q", sessions[0].Dir, cwd)
 	}
 }

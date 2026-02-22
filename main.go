@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -145,10 +146,12 @@ func main() {
 }
 
 // parseSessionArgs parses CLI session specifications into Session objects.
-// Each arg is split on the first ":" only — before the colon is the name,
-// after is the prompt. If there is no colon or the name is empty, an
-// auto-generated name is used (s1, s2, ...). Empty prompts are skipped
-// with a warning. Invalid names fall back to auto-generated names.
+// Formats supported:
+//   - "prompt"              → auto name, cwd, prompt
+//   - "name:prompt"         → name, cwd, prompt
+//   - "name:dir:prompt"     → name, dir, prompt (split on first two colons)
+//
+// Empty prompts are skipped. Invalid names fall back to auto-generated names.
 // A maximum of 20 sessions are accepted; extras are warned and dropped.
 func parseSessionArgs(args []string, runID string) []*session.Session {
 	var sessions []*session.Session
@@ -160,19 +163,27 @@ func parseSessionArgs(args []string, runID string) []*session.Session {
 			continue
 		}
 
-		var name, prompt string
+		var name, dir, prompt string
 
-		// Split on first colon only.
-		if idx := strings.Index(arg, ":"); idx >= 0 {
+		// Count colons to determine format:
+		// 0 colons: entire arg is prompt
+		// 1 colon:  name:prompt
+		// 2+ colons: name:dir:prompt (split on first two colons)
+		colonCount := strings.Count(arg, ":")
+		if colonCount >= 2 {
+			first := strings.Index(arg, ":")
+			second := strings.Index(arg[first+1:], ":") + first + 1
+			name = strings.TrimSpace(arg[:first])
+			dir = strings.TrimSpace(arg[first+1 : second])
+			prompt = strings.TrimSpace(arg[second+1:])
+		} else if colonCount == 1 {
+			idx := strings.Index(arg, ":")
 			name = strings.TrimSpace(arg[:idx])
 			prompt = strings.TrimSpace(arg[idx+1:])
 		} else {
-			// No colon: entire arg is the prompt, auto-generate name.
 			prompt = strings.TrimSpace(arg)
-			name = ""
 		}
 
-		// Empty prompt — skip with warning.
 		if prompt == "" {
 			fmt.Fprintf(os.Stderr, "cloudterminal: warning: empty prompt for %q — skipping\n", arg)
 			continue
@@ -194,7 +205,18 @@ func parseSessionArgs(args []string, runID string) []*session.Session {
 			}
 		}
 
-		s := session.New(name, prompt, "", runID)
+		// Resolve dir.
+		if dir == "" {
+			cwd, _ := os.Getwd()
+			dir = cwd
+		} else if strings.HasPrefix(dir, "~/") {
+			home, _ := os.UserHomeDir()
+			if home != "" {
+				dir = filepath.Join(home, dir[2:])
+			}
+		}
+
+		s := session.New(name, prompt, dir, runID)
 		sessions = append(sessions, s)
 	}
 
