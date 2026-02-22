@@ -522,7 +522,7 @@ func (m *Model) handleOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			// Create and dispatch session.
-			s := session.New(ov.NameInput, prompt, m.RunID)
+			s := session.New(ov.NameInput, prompt, "", m.RunID)
 			m.Sessions = append(m.Sessions, s)
 			m.handleSend(s, prompt)
 			m.ActiveID = s.ID

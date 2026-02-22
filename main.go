@@ -194,7 +194,7 @@ func parseSessionArgs(args []string, runID string) []*session.Session {
 			}
 		}
 
-		s := session.New(name, prompt, runID)
+		s := session.New(name, prompt, "", runID)
 		sessions = append(sessions, s)
 	}
 
