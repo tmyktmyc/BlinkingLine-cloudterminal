@@ -312,6 +312,18 @@ func renderDeckChat(m *Model, s *session.Session, height int) string {
 	return strings.Join(lines, "\n")
 }
 
+// formatDuration returns a human-readable short duration string.
+func formatDuration(d time.Duration) string {
+	d = d.Truncate(time.Second)
+	if d < time.Minute {
+		return fmt.Sprintf("%ds", int(d.Seconds()))
+	}
+	if d < time.Hour {
+		return fmt.Sprintf("%dm", int(d.Minutes()))
+	}
+	return fmt.Sprintf("%dh", int(d.Hours()))
+}
+
 // shortenDir shortens a directory path for display.
 func shortenDir(dir string) string {
 	home, _ := os.UserHomeDir()

@@ -189,26 +189,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// View renders the entire UI. It delegates to ViewNormal or ViewFocus
-// depending on the current mode. When the new-session overlay is active,
-// it replaces the entire view with the centered overlay dialog.
+// View renders the entire UI via the single-pane deck renderer.
 func (m *Model) View() string {
-	if m.Width < 60 || m.Height < 16 {
-		return "Please resize terminal (min 60x16)"
+	if m.Width < 40 || m.Height < 10 {
+		return "Terminal too small. Need at least 40×10."
 	}
-
-	// Overlay takes over the full screen when active.
-	if m.Overlay != nil {
-		return renderOverlay(m)
-	}
-
-	if len(m.Sessions) == 0 {
-		return renderWelcome(m)
-	}
-	if m.Mode == FocusMode {
-		return ViewFocus(m)
-	}
-	return ViewNormal(m)
+	return ViewDeck(m)
 }
 
 // newSpinner creates a MiniDot spinner styled with the Amber color.
@@ -231,20 +217,7 @@ func (m *Model) handleWindowSize(msg tea.WindowSizeMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	// Overlay takes priority.
-	if m.Overlay != nil {
-		return m.handleOverlayKey(msg)
-	}
-
-	// Ctrl+C: double-press quit.
-	if msg.Type == tea.KeyCtrlC {
-		return m.handleCtrlC()
-	}
-
-	if m.Mode == FocusMode {
-		return m.handleFocusKey(msg)
-	}
-	return m.handleNormalKey(msg)
+	return m.handleDeckKey(msg)
 }
 
 func (m *Model) handleCtrlC() (tea.Model, tea.Cmd) {
@@ -291,11 +264,6 @@ func (m *Model) handleSessionDone(msg session.SessionDoneMsg) (tea.Model, tea.Cm
 
 	m.Queue.Rebuild(m.Sessions)
 
-	if m.Mode == FocusMode {
-		m.FocusTotal++
-		m.FocusIncoming++
-	}
-
 	// Notification.
 	if msg.Result.Err != nil {
 		m.addNotif(fmt.Sprintf("! %s error: %s", s.Name, msg.Result.Err.Error()), true)
@@ -303,8 +271,17 @@ func (m *Model) handleSessionDone(msg session.SessionDoneMsg) (tea.Model, tea.Cm
 		m.addNotif(fmt.Sprintf("+ %s needs you", s.Name), false)
 	}
 
-	// If no active session or queue was empty, set this as active.
-	if m.ActiveID == "" || m.Queue.Len() == 1 {
+	// Auto-switch: if on feed or no active session, jump to this card.
+	inputEmpty := strings.TrimSpace(m.Input.Value()) == ""
+	if inputEmpty && (m.Deck == DeckFeed || m.ActiveID == "") {
+		m.ActiveID = s.ID
+		m.Deck = DeckCard
+		idx := m.Queue.IndexOf(s.ID)
+		if idx >= 0 {
+			m.QueueIndex = idx
+		}
+		SetInputPlaceholder(&m.Input, s.Name, false)
+	} else if m.ActiveID == "" || m.Queue.Len() == 1 {
 		idx := m.Queue.IndexOf(s.ID)
 		if idx >= 0 {
 			m.QueueIndex = idx
@@ -353,210 +330,8 @@ func (m *Model) handleTick() (tea.Model, tea.Cmd) {
 		m.DismissConfirmID = ""
 	}
 
-	// Focus auto-suggest.
-	if m.Mode == NormalMode && m.Queue.Len() >= m.Config.FocusThreshold && !m.FocusSuggested {
-		m.addNotif(fmt.Sprintf("Queue has %d items — press F for focus mode", m.Queue.Len()), false)
-		m.FocusSuggested = true
-	}
-	if m.Queue.Len() == 0 {
-		m.FocusSuggested = false
-	}
-
 	cmd := tea.Tick(time.Second, func(t time.Time) tea.Msg { return TickMsg(t) })
 	return m, cmd
-}
-
-// ---------------------------------------------------------------------------
-// Key handlers — Normal Mode
-// ---------------------------------------------------------------------------
-
-func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	inputEmpty := strings.TrimSpace(m.Input.Value()) == ""
-
-	switch {
-	case msg.Type == tea.KeyEnter:
-		if !inputEmpty {
-			active := m.activeSession()
-			if active != nil && active.State == session.NeedsInput {
-				m.handleSendAction()
-			}
-		}
-		return m, nil
-
-	case msg.Type == tea.KeyLeft || msg.Type == tea.KeyShiftTab:
-		if inputEmpty {
-			m.prevQueueItem()
-		} else {
-			return m.updateTextarea(msg)
-		}
-		return m, nil
-
-	case msg.Type == tea.KeyRight || msg.Type == tea.KeyTab:
-		if inputEmpty {
-			m.nextQueueItem()
-		} else {
-			return m.updateTextarea(msg)
-		}
-		return m, nil
-
-	case msg.Type == tea.KeyCtrlN:
-		m.openOverlay()
-		return m, nil
-
-	case msg.Type == tea.KeyCtrlW:
-		m.handleDismiss()
-		return m, nil
-
-	case msg.Type == tea.KeyCtrlU:
-		// Scroll up — will be handled by view layer.
-		return m, nil
-
-	case msg.Type == tea.KeyCtrlD:
-		// Scroll down — will be handled by view layer.
-		return m, nil
-
-	case msg.Type == tea.KeyRunes:
-		r := string(msg.Runes)
-		if inputEmpty {
-			switch strings.ToUpper(r) {
-			case "F":
-				if m.Queue.Len() > 0 {
-					m.enterFocusMode()
-				}
-				return m, nil
-			case "V":
-				m.ShowStrip = !m.ShowStrip
-				return m, nil
-			}
-		}
-		return m.updateTextarea(msg)
-	}
-
-	// Alt+1..9 and other keys pass to textarea.
-	return m.updateTextarea(msg)
-}
-
-// ---------------------------------------------------------------------------
-// Key handlers — Focus Mode
-// ---------------------------------------------------------------------------
-
-func (m *Model) handleFocusKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	inputEmpty := strings.TrimSpace(m.Input.Value()) == ""
-
-	switch {
-	case msg.Type == tea.KeyEnter:
-		if !inputEmpty {
-			m.handleSendAction()
-		}
-		return m, nil
-
-	case msg.Type == tea.KeyCtrlJ: // Ctrl+Enter (often mapped as Ctrl+J)
-		if inputEmpty {
-			// Send default reply.
-			m.Input.SetValue(m.DefaultReply)
-			m.handleSendAction()
-		}
-		return m, nil
-
-	case msg.Type == tea.KeyRunes:
-		r := string(msg.Runes)
-		if inputEmpty {
-			switch strings.ToUpper(r) {
-			case "S":
-				if m.Queue.Len() > 1 {
-					m.skipCard()
-				}
-				return m, nil
-			}
-		}
-		return m.updateTextarea(msg)
-
-	case msg.Type == tea.KeyCtrlW:
-		m.handleDismissFocus()
-		return m, nil
-
-	case msg.Type == tea.KeyCtrlU:
-		return m, nil
-
-	case msg.Type == tea.KeyCtrlD:
-		return m, nil
-
-	case msg.Type == tea.KeyEsc:
-		m.exitFocusMode()
-		return m, nil
-	}
-
-	return m.updateTextarea(msg)
-}
-
-// ---------------------------------------------------------------------------
-// Overlay key handler
-// ---------------------------------------------------------------------------
-
-func (m *Model) handleOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	ov := m.Overlay
-
-	switch msg.Type {
-	case tea.KeyEsc:
-		m.Overlay = nil
-		return m, nil
-
-	case tea.KeyEnter:
-		switch ov.Step {
-		case OverlayStepName:
-			name, err := session.ValidateName(ov.NameInput)
-			if err != nil {
-				ov.Error = err.Error()
-				return m, nil
-			}
-			ov.NameInput = name
-			ov.Error = ""
-			ov.Step = OverlayStepPrompt
-			return m, nil
-
-		case OverlayStepPrompt:
-			prompt := strings.TrimSpace(ov.PromptInput)
-			if prompt == "" {
-				ov.Error = "prompt cannot be empty"
-				return m, nil
-			}
-			// Create and dispatch session.
-			s := session.New(ov.NameInput, prompt, "", m.RunID)
-			m.Sessions = append(m.Sessions, s)
-			m.handleSend(s, prompt)
-			m.ActiveID = s.ID
-			m.Overlay = nil
-			m.addNotif(fmt.Sprintf("Created session %s", s.Name), false)
-			return m, nil
-		}
-
-	case tea.KeyBackspace:
-		switch ov.Step {
-		case OverlayStepName:
-			if len(ov.NameInput) > 0 {
-				ov.NameInput = ov.NameInput[:len(ov.NameInput)-1]
-			}
-		case OverlayStepPrompt:
-			if len(ov.PromptInput) > 0 {
-				ov.PromptInput = ov.PromptInput[:len(ov.PromptInput)-1]
-			} else {
-				// Backspace on empty prompt goes back to name.
-				ov.Step = OverlayStepName
-			}
-		}
-		return m, nil
-
-	case tea.KeyRunes:
-		switch ov.Step {
-		case OverlayStepName:
-			ov.NameInput += string(msg.Runes)
-		case OverlayStepPrompt:
-			ov.PromptInput += string(msg.Runes)
-		}
-		return m, nil
-	}
-
-	return m, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -579,10 +354,6 @@ func (m *Model) handleSendAction() {
 	s.History = append(s.History, session.Message{Role: "user", Text: prompt})
 	m.Input.Reset()
 	m.LastActiveID = s.ID
-
-	if m.Mode == FocusMode {
-		m.FocusCleared++
-	}
 
 	m.handleSend(s, prompt)
 	m.Queue.Rebuild(m.Sessions)
@@ -637,33 +408,6 @@ func (m *Model) handleDismiss() {
 			if s.CancelFunc != nil {
 				s.CancelFunc()
 			}
-			m.removeSession(s.ID)
-			m.DismissConfirmID = ""
-		} else {
-			m.DismissConfirmID = s.ID
-			m.DismissConfirmAt = now
-			m.addNotif(fmt.Sprintf("Press Ctrl+W again to dismiss %s (working)", s.Name), false)
-		}
-	}
-}
-
-// handleDismissFocus is the focus-mode variant of dismiss.
-func (m *Model) handleDismissFocus() {
-	s := m.activeSession()
-	if s == nil {
-		return
-	}
-
-	if s.State == session.NeedsInput {
-		m.FocusTotal--
-		m.removeSession(s.ID)
-	} else if s.State == session.Working {
-		now := time.Now()
-		if m.DismissConfirmID == s.ID && now.Sub(m.DismissConfirmAt) < 2*time.Second {
-			if s.CancelFunc != nil {
-				s.CancelFunc()
-			}
-			m.FocusTotal--
 			m.removeSession(s.ID)
 			m.DismissConfirmID = ""
 		} else {
@@ -733,38 +477,19 @@ func (m *Model) nextQueueItem() {
 	}
 }
 
-// advanceQueue sets the active session after a queue change. If the queue is
-// empty it falls back to LastActiveID or the first session.
+// advanceQueue sets the active session after a queue change.
 func (m *Model) advanceQueue() {
-	if m.Queue.Len() == 0 {
-		if m.Mode == FocusMode {
-			// In focus mode, keep ActiveID (waiting screen will show).
-			return
-		}
-		// Normal mode: show last active or first session.
-		if m.LastActiveID != "" {
-			if m.findSession(m.LastActiveID) != nil {
-				m.ActiveID = m.LastActiveID
-				return
-			}
-		}
-		if len(m.Sessions) > 0 {
-			m.ActiveID = m.Sessions[0].ID
-		} else {
-			m.ActiveID = ""
-		}
-		return
-	}
-
-	// Clamp QueueIndex.
-	if m.QueueIndex >= m.Queue.Len() {
-		m.QueueIndex = m.Queue.Len() - 1
-	}
-	if m.QueueIndex < 0 {
+	m.Queue.Rebuild(m.Sessions)
+	if len(m.Queue.Items) > 0 {
 		m.QueueIndex = 0
-	}
-	if s := m.Queue.At(m.QueueIndex); s != nil {
-		m.ActiveID = s.ID
+		m.ActiveID = m.Queue.Items[0].ID
+		m.Deck = DeckCard
+		s := m.activeSession()
+		if s != nil {
+			SetInputPlaceholder(&m.Input, s.Name, s.State == session.Working)
+		}
+	} else {
+		m.Deck = DeckFeed
 	}
 }
 

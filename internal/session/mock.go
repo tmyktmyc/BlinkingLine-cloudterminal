@@ -14,11 +14,11 @@ import (
 // works while they explore mock mode.
 var mockFirstResponse = "Welcome to CloudTerminal! Here's how this works:\n\n" +
 	"You just sent me a prompt, and I (Claude) worked on it in the background. " +
-	"While I was working, you could have created more sessions with Ctrl+N — they all run in parallel.\n\n" +
+	"While I was working, you could have created more sessions with /new — they all run in parallel.\n\n" +
 	"Now I need your input. You can:\n" +
 	"- Type a reply below and press Enter\n" +
-	"- Press ← → to switch between sessions that need you\n" +
-	"- Press F to enter focus mode (rapid queue clearing)\n\n" +
+	"- Use /skip to move to the next session\n" +
+	"- Use ← → to browse sessions\n\n" +
 	"This is mock mode — responses are simulated. " +
 	"To use real Claude, run without --mock and make sure `claude` CLI is in your PATH."
 
