@@ -18,23 +18,25 @@ import (
 )
 
 // ---------------------------------------------------------------------------
-// Overlay types
+// New-flow types
 // ---------------------------------------------------------------------------
 
-// OverlayStep tracks which field the new-session overlay is on.
-type OverlayStep int
+// NewFlowStep tracks which field the inline session-creation flow is on.
+type NewFlowStep int
 
 const (
-	OverlayStepName   OverlayStep = iota // entering the session name
-	OverlayStepPrompt                    // entering the initial prompt
+	NewFlowName   NewFlowStep = iota
+	NewFlowDir
+	NewFlowPrompt
 )
 
-// OverlayState holds transient state for the new-session overlay dialog.
-type OverlayState struct {
-	Step        OverlayStep
-	NameInput   string
-	PromptInput string
-	Error       string
+// NewFlowState holds transient state for the inline /new session creation.
+type NewFlowState struct {
+	Step   NewFlowStep
+	Name   string
+	Dir    string
+	Prompt string
+	Error  string
 }
 
 // ---------------------------------------------------------------------------
@@ -45,55 +47,48 @@ type OverlayState struct {
 // tea.Model (Init, Update, View) and coordinates all sessions, the queue,
 // input handling, and rendering.
 type Model struct {
+	// Session management
 	Sessions   []*session.Session
 	Queue      queue.Queue
 	ActiveID   string
 	QueueIndex int
 
-	Mode      Mode
-	ShowStrip bool
+	// Deck state — what's currently shown
+	Deck    DeckState
+	NewFlow *NewFlowState // Non-nil during /new flow
 
+	// Input & Display
 	Input        textarea.Model
 	Spinner      spinner.Model
 	DefaultReply string
 
-	FocusCleared  int
-	FocusTotal    int
-	FocusIncoming int
-
+	// Notifications
 	Notifs []Notification
 
+	// Terminal
 	Width  int
 	Height int
 
-	Overlay *OverlayState
-
+	// Dismiss confirmation
 	DismissConfirmID string
 	DismissConfirmAt time.Time
 
+	// Subprocess management
 	RunID      string
 	Sem        chan struct{}
 	RootCtx    context.Context
 	RootCancel context.CancelFunc
 	ShutdownWg sync.WaitGroup
 
+	// Config
 	Config   config.Config
 	MockMode bool
 	Verbose  bool
 
-	// LastActiveID tracks the most recently interacted-with session so the
-	// UI has something to show when the queue is empty.
+	// Internal
 	LastActiveID string
-	// FocusSuggested tracks whether the focus auto-suggest notification has
-	// already been fired for the current queue buildup.
-	FocusSuggested bool
-	// LastCtrlC records the time of the last Ctrl+C press for double-press
-	// quit detection.
-	LastCtrlC time.Time
-
-	// program is a reference to the running tea.Program so that goroutines
-	// can send messages back to the event loop via program.Send().
-	program *tea.Program
+	LastCtrlC    time.Time
+	program      *tea.Program
 }
 
 // NewModel creates a fully initialised Model ready to be passed to
@@ -108,6 +103,8 @@ func NewModel(
 ) *Model {
 	m := &Model{
 		Sessions:     sessions,
+		ActiveID:     "",
+		Deck:         DeckFeed, // Start with feed
 		RunID:        runID,
 		Sem:          make(chan struct{}, cfg.MaxConcurrent),
 		RootCtx:      ctx,
@@ -118,9 +115,11 @@ func NewModel(
 		Input:        NewInput(80), // default width; resized on first WindowSizeMsg
 		Spinner:      newSpinner(),
 		DefaultReply: cfg.DefaultReply,
-		ShowStrip:    false,
 	}
-
+	if len(sessions) > 0 {
+		m.ActiveID = sessions[0].ID
+		m.Deck = DeckCard
+	}
 	return m
 }
 
@@ -705,27 +704,6 @@ func (m *Model) skipCard() {
 }
 
 // ---------------------------------------------------------------------------
-// Mode transitions
-// ---------------------------------------------------------------------------
-
-func (m *Model) enterFocusMode() {
-	m.Mode = FocusMode
-	m.FocusCleared = 0
-	m.FocusTotal = m.Queue.Len()
-	m.FocusIncoming = 0
-	if m.Queue.Len() > 0 {
-		m.QueueIndex = 0
-		m.ActiveID = m.Queue.Items[0].ID
-	}
-	m.addNotif("Entered focus mode", false)
-}
-
-func (m *Model) exitFocusMode() {
-	m.Mode = NormalMode
-	m.addNotif("Exited focus mode", false)
-}
-
-// ---------------------------------------------------------------------------
 // Queue navigation
 // ---------------------------------------------------------------------------
 
@@ -787,16 +765,6 @@ func (m *Model) advanceQueue() {
 	}
 	if s := m.Queue.At(m.QueueIndex); s != nil {
 		m.ActiveID = s.ID
-	}
-}
-
-// ---------------------------------------------------------------------------
-// Overlay
-// ---------------------------------------------------------------------------
-
-func (m *Model) openOverlay() {
-	m.Overlay = &OverlayState{
-		Step: OverlayStepName,
 	}
 }
 
