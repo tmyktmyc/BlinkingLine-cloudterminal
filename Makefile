@@ -1,9 +1,10 @@
 .PHONY: build run test clean mock
 
 BINARY=cloudterminal
+VERSION ?= dev
 
 build:
-	go build -o $(BINARY) .
+	go build -ldflags "-X main.version=$(VERSION)" -o $(BINARY) .
 
 run: build
 	./$(BINARY)

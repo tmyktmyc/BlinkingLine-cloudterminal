@@ -17,11 +17,22 @@ import (
 	"github.com/BlinkingLine/cloudterminal/internal/ui"
 )
 
+// version is set at build time via ldflags.
+var version = "dev"
+
 func main() {
 	// -----------------------------------------------------------------------
 	// 1. Parse CLI args: --mock flag, --verbose flag, remaining args are
 	//    session specs in the form "name:prompt".
 	// -----------------------------------------------------------------------
+	// Check for --version before anything else.
+	for _, arg := range os.Args[1:] {
+		if arg == "--version" {
+			fmt.Printf("cloudterminal %s\n", version)
+			os.Exit(0)
+		}
+	}
+
 	mockMode := false
 	verbose := false
 	var sessionArgs []string
@@ -206,9 +217,9 @@ func checkClaudeVersion() {
 		return
 	}
 
-	version := match[1]
-	parts := strings.SplitN(version, ".", 3)
+	claudeVersion := match[1]
+	parts := strings.SplitN(claudeVersion, ".", 3)
 	if parts[0] == "0" {
-		fmt.Fprintf(os.Stderr, "cloudterminal: warning: claude version %s detected — major version < 1, some features may not work\n", version)
+		fmt.Fprintf(os.Stderr, "cloudterminal: warning: claude version %s detected — major version < 1, some features may not work\n", claudeVersion)
 	}
 }
